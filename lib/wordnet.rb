@@ -67,4 +67,6 @@ module Wordnet
     end
     true
   end
+  
+  self.parse_dict_files
 end
