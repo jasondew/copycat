@@ -1,7 +1,7 @@
 module Parser
   PARSER_DIR = '/home/jed/stanford-parser-2011-04-20'
   def self.parse(s)
-    fn = "parsee-#{(10**20).to_s(36)}"
+    fn = "/tmp/parsee-#{(10**20).to_s(36)}"
     open(fn,'w'){|f|f.write(s)}
     res = `#{PARSER_DIR}/lexparser.csh #{fn} 2>/dev/null`
     self.parse_parens(res.gsub("\n",' '))[0]
