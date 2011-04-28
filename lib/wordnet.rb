@@ -1,6 +1,3 @@
-#FIXME change this to use bundler
-require "tree"
-
 module Wordnet
 
   POINTER_SYMBOLS = { "!"  => "Antonym",

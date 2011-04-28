@@ -1,10 +1,17 @@
+PATH
+  remote: .
+  specs:
+    copycat (0.0.1)
+      rubytree
+
 GEM
   remote: http://rubygems.org/
   specs:
     rubytree (0.8.1)
 
 PLATFORMS
+  java
   ruby
 
 DEPENDENCIES
-  rubytree
+  copycat!

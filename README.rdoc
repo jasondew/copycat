@@ -1,3 +1,5 @@
 = Copycat
 
 A plagiarism detector and facilitator.
+
+Requires jRuby.
