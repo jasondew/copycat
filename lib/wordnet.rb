@@ -116,8 +116,8 @@ module Wordnet
 
           entry = parse_entry line, part_of_speech
 
-          pos_data[id] = entry
-          words.each {|word, pointer| pos_index[word.downcase] = entry }
+          pos_data[entry.id] = entry
+          entry.words.each {|word, pointer| pos_index[word.downcase] = entry }
         end
 
         @data[part_of_speech] = pos_data
