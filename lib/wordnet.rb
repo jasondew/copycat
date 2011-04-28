@@ -62,8 +62,25 @@ module Wordnet
     end
 
     def hypernym_distance_from other
-      hypernym_ancestors
-      other.hypernym_ancestors
+      my_distances = hypernym_ancestor_distances
+      other_distances = other.hypernym_ancestor_distances
+      common_ids = my_distances.keys & other_distances.keys
+
+      common_ids.map {|id| my_distances[id] + other_distances[id] }.min
+    end
+
+    def hypernym_ancestor_distances
+      distances = {id => 0}
+
+      hypernyms.each do |child|
+        distances[child.id] = 1
+
+        child.hypernym_ancestor_distances.each do |id, distance|
+          distances[id] = [distances[id], distance + 1].compact.min
+        end
+      end
+
+      distances
     end
 
     def height
