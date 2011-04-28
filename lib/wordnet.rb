@@ -113,32 +113,9 @@ module Wordnet
 
         File.readlines(filename).each do |line|
           next if line =~ /^  /
-          # synset_offset lex_filenum ss_type w_cnt word lex_id [word lex_id...] p_cnt [ptr...] [frames...] | gloss
 
-          data, gloss = line.split /\|/, 2
-          id_string, _, _, word_count, *words_and_pointers = data.split /\s/
-          id = id_string.to_i
+          entry = parse_entry line, part_of_speech
 
-          # parse the words
-          words = Hash.new
-
-          word_count.to_i.times do
-            word, pointer = words_and_pointers.shift(2)
-            word.gsub! /_/, " "
-
-            words[word] = pointer
-          end
-
-          # parse the pointers
-          pointer_count = words_and_pointers.shift
-          pointers = Array.new
-
-          pointer_count.to_i.times do
-            symbol, offset, type, source_or_target = words_and_pointers.shift(4)
-            pointers << [symbol, offset, type, source_or_target]
-          end
-
-          entry = Entry.new(id, part_of_speech, words, pointers, gloss)
           pos_data[id] = entry
           words.each {|word, pointer| pos_index[word.downcase] = entry }
         end
@@ -169,6 +146,35 @@ module Wordnet
       return unless (pos_data = @data[part_of_speech.to_sym])
 
       pos_data[id.to_i]
+    end
+
+    private
+
+    def parse_entry line, part_of_speech
+      data, gloss = line.split /\|/, 2
+      id_string, _, _, word_count, *words_and_pointers = data.split /\s/
+      id = id_string.to_i
+
+      # parse the words
+      words = Hash.new
+
+      word_count.to_i.times do
+        word, pointer = words_and_pointers.shift(2)
+        word.gsub! /_/, " "
+
+        words[word] = pointer
+      end
+
+      # parse the pointers
+      pointer_count = words_and_pointers.shift
+      pointers = Array.new
+
+      pointer_count.to_i.times do
+        symbol, offset, type, source_or_target = words_and_pointers.shift(4)
+        pointers << [symbol, offset, type, source_or_target]
+      end
+
+      Entry.new id, part_of_speech, words, pointers, gloss
     end
 
   end
