@@ -117,7 +117,11 @@ module Wordnet
           entry = parse_entry line, part_of_speech
 
           pos_data[entry.id] = entry
-          entry.words.each {|word, pointer| pos_index[word.downcase] = entry }
+          entry.words.each do |word, pointer| 
+            w = word.downcase
+            pos_index[w] ||= []
+            pos_index[w] << entry 
+          end
         end
 
         @data[part_of_speech] = pos_data
@@ -133,7 +137,7 @@ module Wordnet
 
     # return all results across all parts of speech
     def search word
-      PARTS_OF_SPEECH.map {|part_of_speech| @index[part_of_speech][word.downcase] }.compact
+      PARTS_OF_SPEECH.map {|part_of_speech| @index[part_of_speech][word.downcase] || []}.inject(:+).compact
     end
 
     # return first result across all parts of speech
