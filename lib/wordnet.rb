@@ -1,3 +1,6 @@
+#FIXME change this to use bundler
+require "tree"
+
 module Wordnet
 
   POINTER_SYMBOLS = { "!"  => "Antonym",
@@ -46,8 +49,19 @@ module Wordnet
     end
 
     def hypernym_ancestors
-      return [] if (ancestors = hypernyms).empty?
-      ancestors + hypernyms.map(&:hypernym_ancestors)
+      return if (ancestors = hypernyms).empty?
+
+      root = Tree::TreeNode.new(id, self)
+
+      ancestors.each do |word|
+        word_ancestors = word.hypernym_ancestors
+        root << word_ancestors if word_ancestors
+      end
+
+      root
+    end
+
+    def <=> other
     end
 
   end
@@ -55,7 +69,7 @@ module Wordnet
   module ClassMethods
 
     # not sure we want to keep this here after testing
-    attr_reader :loaded, :data, :index
+    attr_reader :data, :index
 
     @loaded = false
     @data = {}
@@ -100,8 +114,9 @@ module Wordnet
             pointers << [symbol, offset, type, source_or_target]
           end
 
-          pos_data[id] = Entry.new(id, part_of_speech, words, pointers, gloss)
-          words.each {|word, pointer| (pos_index[word] ||= []) << id }
+          entry = Entry.new(id, part_of_speech, words, pointers, gloss)
+          pos_data[id] = entry
+          words.each {|word, pointer| pos_index[word.downcase] = entry }
         end
 
         @data[part_of_speech] = pos_data
@@ -109,6 +124,14 @@ module Wordnet
       end
 
       @loaded = true
+    end
+
+    def loaded?
+      !! @loaded
+    end
+
+    def search word
+      PARTS_OF_SPEECH.map {|part_of_speech| @index[part_of_speech][word.downcase] }.compact
     end
 
     def [] id, part_of_speech
