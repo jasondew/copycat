@@ -43,15 +43,17 @@ module Wordnet
       "#<Wordnet::Entry::#{@id} @words=#{@words.inspect}>"
     end
 
+    # returns the list of hypernym entries
     def hypernyms
       ids = @pointers.select {|symbol, *_| symbol == "@" }.map {|_, offset, *_| offset.to_i }
       ids.map {|id| Wordnet[id, part_of_speech] }
     end
 
+    # returns a tree of hypernyms
     def hypernym_ancestors
       return if (ancestors = hypernyms).empty?
 
-      root = Tree::TreeNode.new(id, self)
+      root = Tree::TreeNode.new(inspect, self)
 
       ancestors.each do |word|
         word_ancestors = word.hypernym_ancestors
