@@ -28,6 +28,15 @@ module Wordnet
                       ";u" => "Domain of synset - USAGE",
                       "-u" => "Member of this domain - USAGE" }
 
+  PARTS_OF_SPEECH = [:noun, :verb, :adj, :adv]
+  DATA_PATH = File.join File.dirname(__FILE__), "data"
+
+  @data = Hash.new
+  @index = Hash.new
+
+  # not sure we want to keep this here after testing
+  attr_reader :data, :index
+
   class Entry
 
     attr_reader :id, :part_of_speech, :words, :pointers, :gloss
@@ -92,45 +101,6 @@ module Wordnet
 
   module ClassMethods
 
-    # not sure we want to keep this here after testing
-    attr_reader :data, :index
-
-    @loaded = false
-    @data = {}
-    @index = {}
-
-    PARTS_OF_SPEECH = [:noun, :verb, :adj, :adv]
-    DATA_PATH = File.join File.dirname(__FILE__), "data"
-
-    def included _
-      @data = Hash.new
-      @index = Hash.new
-
-      PARTS_OF_SPEECH.each do |part_of_speech|
-        pos_data = {}
-        pos_index = {}
-        filename = File.join DATA_PATH, "data.#{part_of_speech}"
-
-        File.readlines(filename).each do |line|
-          next if line =~ /^  /
-
-          entry = parse_entry line, part_of_speech
-
-          pos_data[entry.id] = entry
-          entry.words.each {|word, pointer| pos_index[word.downcase] = entry }
-        end
-
-        @data[part_of_speech] = pos_data
-        @index[part_of_speech] = pos_index
-      end
-
-      @loaded = true
-    end
-
-    def loaded?
-      !! @loaded
-    end
-
     # return all results across all parts of speech
     def search word
       PARTS_OF_SPEECH.map {|part_of_speech| @index[part_of_speech][word.downcase] }.compact
@@ -147,8 +117,6 @@ module Wordnet
 
       pos_data[id.to_i]
     end
-
-    private
 
     def parse_entry line, part_of_speech
       data, gloss = line.split /\|/, 2
@@ -179,5 +147,23 @@ module Wordnet
 
   end
   extend ClassMethods
+
+  PARTS_OF_SPEECH.each do |part_of_speech|
+    pos_data = {}
+    pos_index = {}
+    filename = File.join DATA_PATH, "data.#{part_of_speech}"
+
+    File.readlines(filename).each do |line|
+      next if line =~ /^  /
+
+      entry = parse_entry line, part_of_speech
+
+      pos_data[entry.id] = entry
+      entry.words.each {|word, pointer| pos_index[word.downcase] = entry }
+    end
+
+    @data[part_of_speech] = pos_data
+    @index[part_of_speech] = pos_index
+  end
 
 end
