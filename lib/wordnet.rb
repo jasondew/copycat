@@ -1,72 +1,103 @@
 module Wordnet
-  def self.noun(w)
-    
-  end
 
-  def self.data
-    @data
-  end
+  module ClassMethods
 
-  def self.sense_for(w)
-    if(ws = @index[w])
-      ws[0]
-    end
-  end
+    # not sure we want to keep this here after testing
+    attr_reader :loaded, :data, :index
 
-  def self.similar(id)
-    if(hypers = @data[id][:hypernym])
-      id = hypers[rand(hypers.length)]
-      words = @data[id][:word]
-      words[rand(words.length)]
-    end
-  end
-
-  # This is very ad-hoc so far. All the rules used here I learned from the noun file,
-  # so may not apply really.
-  def self.parse_dict_files
+    @loaded = false
     @data = {}
     @index = {}
-    files = Dir.glob('dict/data.*')
-    files.each do |file|
-      File.read(file).split("\n").reject{|l|l=~/^\s/}.each do |line|
-        tokens = line.split(' ')
-        id = tokens.shift
-        h2 = {}
-        3.times { tokens.shift }
-        h2[:word] = [tokens.shift]
-        add = lambda do |key, value|
-          h2[key] ||= []
-          h2[key] << value
-        end
-        until(tokens.empty?)
-          t = tokens.shift
-          case t
-            when '@'
-              add.call(:hypernym, tokens.shift)
-            when '|'
-              h2[:description] = tokens.join(' ')
-              tokens = []
-            when '#m' # e.g. 12699301 to 12699157
-              add.call(:member_of, tokens.shift)
-            when '%m' # e.g. 12699157 to 12699301
-              add.call(:member, tokens.shift)
-            when '%p' # e.g. 12699301 to 07745803
-              add.call(:part, tokens.shift)
-            when '~'  # e.g. 03614007 to 03928814
-              add.call(:hyponym, tokens.shift)
-            when /^[-'0-9a-z_]{2,}$/i
-              add.call(:word, t) unless t =~ /^(\d+|-.*)$/
+
+    PARTS_OF_SPEECH = %w(noun verb adj adv)
+    DATA_PATH = File.join File.dirname(__FILE__), "data"
+    POINTER_SYMBOLS = { "!"  => "Antonym",
+                        "@"  => "Hypernym",
+                        "@i" => "Instance Hypernym",
+                        "~"  => "Hyponym",
+                        "~i" => "Instance Hyponym",
+                        "#m" => "Member holonym",
+                        "#s" => "Substance holonym",
+                        "#p" => "Part holonym",
+                        "%m" => "Member meronym",
+                        "%s" => "Substance meronym",
+                        "%p" => "Part meronym",
+                        "="  => "Attribute",
+                        "+"  => "Derivationally related form",
+                        "*"  => "Entailment",
+                        ">"  => "Cause",
+                        "^"  => "Also see",
+                        "$"  => "Verb Group",
+                        "+"  => "Derivationally related form",
+                        "&"  => "Similar to",
+                        "<"  => "Participle of verb",
+                        "\\" => "Pertainym (pertains to noun) for adjectives, Derived from adjective for adverbs",
+                        ";c" => "Domain of synset - TOPIC",
+                        "-c" => "Member of this domain - TOPIC",
+                        ";r" => "Domain of synset - REGION",
+                        "-r" => "Member of this domain - REGION",
+                        ";u" => "Domain of synset - USAGE",
+                        "-u" => "Member of this domain - USAGE" }
+
+    def included _
+      @data = Hash.new
+      @index = Hash.new
+
+      PARTS_OF_SPEECH.each do |part_of_speech|
+        pos_data = {}
+        pos_index = {}
+        filename = File.join DATA_PATH, "data.#{part_of_speech}"
+
+        File.readlines(filename).each do |line|
+          next if line =~ /^  /
+          # synset_offset lex_filenum ss_type w_cnt word lex_id [word lex_id...] p_cnt [ptr...] [frames...] | gloss
+
+          data, gloss = line.split /\|/, 2
+          id, _, _, word_count, *words_and_pointers = data.split /\s/
+
+          # parse the words
+          words = Hash.new
+
+          word_count.to_i.times do
+            word, pointer = words_and_pointers.shift(2)
+            word.gsub! /_/, " "
+
+            words[word] = pointer
           end
+
+          # parse the pointers
+          pointer_count = words_and_pointers.shift
+          pointers = Array.new
+
+          pointer_count.to_i.times do
+            symbol, offset, type, source_or_target = words_and_pointers.shift(4)
+            pointers << [symbol, offset, type, source_or_target]
+          end
+
+          pos_data[id] = {:words => words, :pointers => pointers, :gloss => gloss}
+          words.each {|word, pointer| (pos_index[word] ||= []) << id }
         end
-        @data[id] = h2
-        h2[:word].each do |x|
-          @index[x] ||= []
-          @index[x] << id
-        end
+
+        @data[part_of_speech] = pos_data
+        @index[part_of_speech] = pos_index
       end
     end
-    true
+
+    def sense_for(w)
+      if(ws = @index[w])
+        ws[0]
+      end
+    end
+
+    def similar(id)
+      if(hypers = @data[id][:hypernym])
+        id = hypers[rand(hypers.length)]
+        words = @data[id][:word]
+        words[rand(words.length)]
+      end
+    end
+
   end
-  
-  self.parse_dict_files
+  extend ClassMethods
+
 end
