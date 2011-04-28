@@ -1,5 +1,57 @@
 module Wordnet
 
+  POINTER_SYMBOLS = { "!"  => "Antonym",
+                      "@"  => "Hypernym",
+                      "@i" => "Instance Hypernym",
+                      "~"  => "Hyponym",
+                      "~i" => "Instance Hyponym",
+                      "#m" => "Member holonym",
+                      "#s" => "Substance holonym",
+                      "#p" => "Part holonym",
+                      "%m" => "Member meronym",
+                      "%s" => "Substance meronym",
+                      "%p" => "Part meronym",
+                      "="  => "Attribute",
+                      "+"  => "Derivationally related form",
+                      "*"  => "Entailment",
+                      ">"  => "Cause",
+                      "^"  => "Also see",
+                      "$"  => "Verb Group",
+                      "+"  => "Derivationally related form",
+                      "&"  => "Similar to",
+                      "<"  => "Participle of verb",
+                      "\\" => "Pertainym (pertains to noun) for adjectives, Derived from adjective for adverbs",
+                      ";c" => "Domain of synset - TOPIC",
+                      "-c" => "Member of this domain - TOPIC",
+                      ";r" => "Domain of synset - REGION",
+                      "-r" => "Member of this domain - REGION",
+                      ";u" => "Domain of synset - USAGE",
+                      "-u" => "Member of this domain - USAGE" }
+
+  class Entry
+
+    attr_reader :id, :part_of_speech, :words, :pointers, :gloss
+
+    def initialize id, part_of_speech, words, pointers, gloss
+      @id, @part_of_speech, @words, @pointers, @gloss = id, part_of_speech, words, pointers, gloss
+    end
+
+    def inspect
+      "#<Wordnet::Entry::#{@id} @words=#{@words.inspect}>"
+    end
+
+    def hypernyms
+      ids = @pointers.select {|symbol, *_| symbol == "@" }.map {|_, offset, *_| offset.to_i }
+      ids.map {|id| Wordnet[id, part_of_speech] }
+    end
+
+    def hypernym_ancestors
+      return [] if (ancestors = hypernyms).empty?
+      ancestors + hypernyms.map(&:hypernym_ancestors)
+    end
+
+  end
+
   module ClassMethods
 
     # not sure we want to keep this here after testing
@@ -9,35 +61,8 @@ module Wordnet
     @data = {}
     @index = {}
 
-    PARTS_OF_SPEECH = %w(noun verb adj adv)
+    PARTS_OF_SPEECH = [:noun, :verb, :adj, :adv]
     DATA_PATH = File.join File.dirname(__FILE__), "data"
-    POINTER_SYMBOLS = { "!"  => "Antonym",
-                        "@"  => "Hypernym",
-                        "@i" => "Instance Hypernym",
-                        "~"  => "Hyponym",
-                        "~i" => "Instance Hyponym",
-                        "#m" => "Member holonym",
-                        "#s" => "Substance holonym",
-                        "#p" => "Part holonym",
-                        "%m" => "Member meronym",
-                        "%s" => "Substance meronym",
-                        "%p" => "Part meronym",
-                        "="  => "Attribute",
-                        "+"  => "Derivationally related form",
-                        "*"  => "Entailment",
-                        ">"  => "Cause",
-                        "^"  => "Also see",
-                        "$"  => "Verb Group",
-                        "+"  => "Derivationally related form",
-                        "&"  => "Similar to",
-                        "<"  => "Participle of verb",
-                        "\\" => "Pertainym (pertains to noun) for adjectives, Derived from adjective for adverbs",
-                        ";c" => "Domain of synset - TOPIC",
-                        "-c" => "Member of this domain - TOPIC",
-                        ";r" => "Domain of synset - REGION",
-                        "-r" => "Member of this domain - REGION",
-                        ";u" => "Domain of synset - USAGE",
-                        "-u" => "Member of this domain - USAGE" }
 
     def included _
       @data = Hash.new
@@ -53,7 +78,8 @@ module Wordnet
           # synset_offset lex_filenum ss_type w_cnt word lex_id [word lex_id...] p_cnt [ptr...] [frames...] | gloss
 
           data, gloss = line.split /\|/, 2
-          id, _, _, word_count, *words_and_pointers = data.split /\s/
+          id_string, _, _, word_count, *words_and_pointers = data.split /\s/
+          id = id_string.to_i
 
           # parse the words
           words = Hash.new
@@ -74,27 +100,22 @@ module Wordnet
             pointers << [symbol, offset, type, source_or_target]
           end
 
-          pos_data[id] = {:words => words, :pointers => pointers, :gloss => gloss}
+          pos_data[id] = Entry.new(id, part_of_speech, words, pointers, gloss)
           words.each {|word, pointer| (pos_index[word] ||= []) << id }
         end
 
         @data[part_of_speech] = pos_data
         @index[part_of_speech] = pos_index
       end
+
+      @loaded = true
     end
 
-    def sense_for(w)
-      if(ws = @index[w])
-        ws[0]
-      end
-    end
+    def [] id, part_of_speech
+      return unless @loaded and @data
+      return unless (pos_data = @data[part_of_speech.to_sym])
 
-    def similar(id)
-      if(hypers = @data[id][:hypernym])
-        id = hypers[rand(hypers.length)]
-        words = @data[id][:word]
-        words[rand(words.length)]
-      end
+      pos_data[id.to_i]
     end
 
   end
