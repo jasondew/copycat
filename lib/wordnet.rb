@@ -61,6 +61,11 @@ module Wordnet
       root
     end
 
+    def hypernym_distance_from other
+      hypernym_ancestors
+      other.hypernym_ancestors
+    end
+
     def height
       hypernym_ancestors.node_height
     end
