@@ -40,7 +40,7 @@ module Wordnet
     end
 
     def inspect
-      "#<Wordnet::Entry::#{@id} @words=#{@words.inspect}>"
+      "#<Wordnet::Entry::#{@id}[#{@part_of_speech}] @words=#{@words.inspect}>"
     end
 
     # returns the list of hypernym entries
@@ -51,19 +51,22 @@ module Wordnet
 
     # returns a tree of hypernyms
     def hypernym_ancestors
-      return if (ancestors = hypernyms).empty?
-
       root = Tree::TreeNode.new(inspect, self)
 
-      ancestors.each do |word|
-        word_ancestors = word.hypernym_ancestors
+      hypernyms.each do |word|
+        (word_ancestors = word.hypernym_ancestors)
         root << word_ancestors if word_ancestors
       end
 
       root
     end
 
+    def height
+      hypernym_ancestors.node_height
+    end
+
     def <=> other
+      height <=> other.height
     end
 
   end
