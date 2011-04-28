@@ -157,8 +157,14 @@ module Wordnet
       !! @loaded
     end
 
+    # return all results across all parts of speech
     def search word
       PARTS_OF_SPEECH.map {|part_of_speech| @index[part_of_speech][word.downcase] }.compact
+    end
+
+    # return first result across all parts of speech
+    def find word
+      search(word).first
     end
 
     def [] id, part_of_speech
