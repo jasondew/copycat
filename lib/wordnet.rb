@@ -103,18 +103,19 @@ module Wordnet
 
   module ClassMethods
 
-    # return all results across all parts of speech
-    def search word
-      PARTS_OF_SPEECH.map {|part_of_speech| @index[part_of_speech][word.downcase] || []}.inject(:+).compact
+    # return all results across all or one parts of speech
+    def search word, pos = nil
+      parts_of_speech = pos ? [pos] : PARTS_OF_SPEECH
+      parts_of_speech.map {|part_of_speech| @index[part_of_speech][word.downcase] || []}.inject(:+).compact
     end
 
-    # return first result across all parts of speech
-    def find word
-      search(word).first
+    # return first result across all or one parts of speech
+    def find word, pos = nil
+      search(word, pos).first
     end
 
     def [] id, part_of_speech
-      return unless @loaded and @data
+      return unless @data
       return unless (pos_data = @data[part_of_speech.to_sym])
 
       pos_data[id.to_i]
