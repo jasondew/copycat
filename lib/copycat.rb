@@ -8,7 +8,7 @@ module Copycat
 
   module ClassMethods
 
-    def mutate sentence
+    def mutate sentence, times = 1
       tree = Parser.parse(sentence)
 
       transform_tree tree
@@ -27,7 +27,13 @@ module Copycat
       reconstituted_sentence = []
       tree.each {|node| reconstituted_sentence << node.content if node.is_leaf? }
 
-      reconstituted_sentence.join " "
+      result = reconstituted_sentence.join " "
+
+      if times == 1
+        result
+      else
+        mutate(result, times - 1)
+      end
     end
 
     def compare(sentence1, sentence2)
