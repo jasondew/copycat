@@ -7,6 +7,29 @@ require "wordnet"
 module Copycat
 
   module ClassMethods
+
+    def mutate sentence
+      tree = Parser.parse(sentence)
+
+      transform_tree tree
+
+      tree.each do |node|
+        next unless node.content.is_a? Array
+
+        # picking the first sense of the word because we have to better information
+        entry = node.content.first
+        next unless entry
+
+        replacement = random(entry.words.keys)
+        node.content = replacement if replacement
+      end
+
+      reconstituted_sentence = []
+      tree.each {|node| reconstituted_sentence << node.content if node.is_leaf? }
+
+      reconstituted_sentence.join " "
+    end
+
     def compare(sentence1, sentence2)
       tree1 = Parser.parse(sentence1)
       tree2 = Parser.parse(sentence2)
@@ -65,7 +88,6 @@ module Copycat
       # measure. Probably.
       1 - min_distance / 30.0
     end
-          
 
     # Groups the subtrees by non-terminal type
     def assemble_subtrees tree
@@ -83,7 +105,7 @@ module Copycat
     # Converts the terminals of a parse tree to arrays of wordnet objects
     def transform_tree(tree)
       if(tree.children.empty?)
-        pos = parse_pos(tree.parent.content)
+        pos = tag_to_wordnet_part_of_speech(tree.parent.content)
         if pos
           tree.content = Wordnet.search(tree.content, pos)
         end
@@ -92,14 +114,19 @@ module Copycat
       end
     end
 
-    def parse_pos(nonterminal)
+    def tag_to_wordnet_part_of_speech tag
       # Not 100% sure this is complete or accurate
-      case nonterminal
-        when /^N/ then :noun
-        when /^V/ then :verb
+      case tag
+        when /^N/  then :noun
+        when /^V/  then :verb
         when /^RB/ then :adv
-        when /^J/ then :adj
+        when /^J/  then :adj
       end
+    end
+
+    def random array
+      index = (rand * array.size).to_i
+      array[index]
     end
   end
 
