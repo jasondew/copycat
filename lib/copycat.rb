@@ -107,7 +107,9 @@ module Copycat
       if(tree.children.empty?)
         pos = tag_to_wordnet_part_of_speech(tree.parent.content)
         if pos
-          tree.content = Wordnet.search(tree.content, pos)
+          unless (results = Wordnet.search(tree.content, pos)).empty?
+            tree.content = results
+          end
         end
       else
         tree.children.each{|child|transform_tree(child)}
