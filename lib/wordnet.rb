@@ -76,17 +76,19 @@ module Wordnet
     end
 
     def hypernym_ancestor_distances
-      distances = {id => 0}
+      @had ||= begin
+        distances = {id => 0}
 
-      hypernyms.each do |child|
-        distances[child.id] = 1
+        hypernyms.each do |child|
+          distances[child.id] = 1
 
-        child.hypernym_ancestor_distances.each do |id, distance|
-          distances[id] = [distances[id], distance + 1].compact.min
+          child.hypernym_ancestor_distances.each do |id, distance|
+            distances[id] = [distances[id], distance + 1].compact.min
+          end
         end
-      end
 
-      distances
+        distances
+      end
     end
 
     def height
