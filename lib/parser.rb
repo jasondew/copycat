@@ -43,10 +43,13 @@ module Parser
     @lp.parse(sentences[0])
   end
 
+  # Converts a tree from the stanford parser package to a more rubyish tree
   def self.java_tree_to_arrays(tree)
-    kids = tree.children.map{|x|java_tree_to_arrays(x)}
-    kids.unshift(tree.label.value)
-    kids
+    # label just has to be unique. don't think we're using it for anything
+    label = tree.label.value + '-' + tree.object_id.to_s
+    root = Tree::TreeNode.new(label, tree.label.value)
+    tree.children.each{|x|root << java_tree_to_arrays(x)}
+    root
   end
 
   def self.pp(v, indent = 0)
