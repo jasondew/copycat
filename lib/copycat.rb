@@ -28,6 +28,8 @@ module Copycat
       tree.each {|node| reconstituted_sentence << node.content if node.is_leaf? }
 
       result = reconstituted_sentence.join " "
+      # Cleans up some extra whitespace added before punctuation
+      result = result.gsub(/\s+([;,\.\!\?])/, "\\1")
 
       if times == 1
         result
