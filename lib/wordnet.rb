@@ -46,7 +46,7 @@ module Wordnet
     end
 
     def inspect
-      "#<Wordnet::Entry::#{@id}[#{@part_of_speech}] @words=#{@words.inspect}>"
+      "#<Wordnet::Entry::#{@id}[#{@part_of_speech}] #{@words.keys.inspect}>"
     end
 
     # returns the list of hypernym entries

@@ -41,12 +41,49 @@ module Copycat
     # Returns a float in the range of [0,1] representing the probabality that
     # sentence2 has plagiarized sentence1
     def compare(sentence1, sentence2)
-      tree1 = Parser.parse(sentence1)
-      tree2 = Parser.parse(sentence2)
-      transform_tree tree1
-      transform_tree tree2
+      tagged_words1 = remove_non_words unhash flatten transform_tree Parser.parse(sentence1)
+      tagged_words2 = remove_non_words unhash flatten transform_tree Parser.parse(sentence2)
 
-      compare_subtrees tree1, tree2
+#      STDERR.puts "comparing:\n  #{sentence1.inspect}\n  #{sentence2.inspect}"
+#      STDERR.puts "comparing:\n  #{tagged_words1.inspect}\n  #{tagged_words2.inspect}"
+
+      # ensure that tagged_words1.size >= tagged_words2.size
+      if tagged_words1.size < tagged_words2.size
+        tagged_words1, tagged_words2 = tagged_words2, tagged_words1
+      end
+
+      max_similarity = 0.0
+      tagged_words2.size.times do |size|
+        max_similarity = [compare_fragments(tagged_words1, tagged_words2[0..size]), max_similarity].max
+      end
+
+      STDERR.puts "final result = #{max_similarity.inspect}"
+
+      max_similarity
+    end
+
+    # precondition: tagged_words1.size >= tagged_words2.size
+    def compare_fragments tagged_words1, tagged_words2
+      if tagged_words1.size == tagged_words2.size
+        result = compare_tagged_words tagged_words1, tagged_words2
+        STDERR.puts "identical sizes, tagged_words1.size=#{tagged_words1.size} result = #{result.inspect}\n\n#{'#'*120}"
+        result
+      else
+        max_similarity = 0.0
+        compared_size = tagged_words2.size
+
+        (tagged_words1.size - tagged_words2.size).times do |offset|
+          similarity = compare_tagged_words tagged_words1[offset..(offset + compared_size - 1)], tagged_words2
+          STDERR.puts ">> offset #{offset} similarity = #{similarity.inspect}"
+          max_similarity = [similarity, max_similarity].max
+        end
+
+        result = max_similarity
+        STDERR.puts "non-identical sizes, result = #{result.inspect}\n\n#{'#'*120}"
+        result
+      end
+
+      #compare_subtrees tree1, tree2
 
 #     subtrees1 = assemble_subtrees tree1
 #     subtrees2 = assemble_subtrees tree2
@@ -63,40 +100,84 @@ module Copycat
 #     end
     end
 
-    def compare_subtrees tree1, tree2
-      if(tree1.size == 2 and tree2.size == 2)
-        # base case, we have two collections of wordnet objects
-        return wordnet_compare(tree1.children[0].content, tree2.children[0].content)
-      end
-
-      tree1_child_types = tree1.children.map &:content
-      tree2_child_types = tree2.children.map &:content
-
-      # crude initial method -- return 0 if they don't have exactly the
-      # same immediate substructure
-      return 0 if tree1_child_types != tree2_child_types
-
-      total = 0.0
-      tree1.children.zip(tree2.children).each do |stree1, stree2|
-        total += compare_subtrees(stree1, stree2)
-      end
-      total / tree1.children.length
+    def compare_tagged_words tagged_words1, tagged_words2
+#STDERR.puts " !! >> tagged_words1.size = #{tagged_words1.size}, tagged_words2.size = #{tagged_words2.size}, zip size = #{tagged_words1.zip(tagged_words2).size}"
+      tagged_words1.zip(tagged_words2).inject(0.0) do |sum, ((tag1, word1), (tag2, word2))|
+        if tag1 == tag2
+          result = sum + wordnet_compare(word1, word2)
+#          STDERR.puts "compare_tagged_words >> #{result.inspect}"
+          result
+        else
+#          STDERR.puts "compare_tagged_words >> #{sum.inspect} b/c tags didn't match >> #{tag1} != #{tag2}"
+          sum
+        end
+      end / tagged_words1.size.to_f
     end
 
-    def wordnet_compare(entries1, entries2)
-      if(entries1.class == String or entries2.class == String)
-        return entries1 == entries2 ? 1 : 0
-      end
-      min_distance = 30.0 
-      entries1.each do |entry1|
-        entries2.each do |entry2|
-          hdf = entry1.hypernym_distance_from entry2
-          min_distance = [min_distance, hdf].min if hdf
+    def compare_subtrees tree1, tree2
+      if tree1.size == 2 and tree2.size == 2
+        # base case, we have two collections of wordnet objects
+        wordnet_compare(tree1.children.first.content, tree2.children.first.content)
+      elsif tree1.size == 2
+      elsif tree2.size == 2
+      else
+        # all possible alignments
+
+
+        total = 0.0
+        tree1.children.zip(tree2.children).each do |subtree1, subtree2|
+          total += compare_subtrees subtree1, subtree2
         end
+        total / tree1.children.length
       end
-      # There's probably a better way to convert the distance to a similarity
-      # measure. Probably.
-      1 - min_distance / 30.0
+    end
+
+    def child_tags tree
+      tree.children.
+           map(&:content).                  # get tags
+           reject {|tag| tag !~ /^[A-Z]/ }  # reject punctuation tags
+    end
+
+    def flatten tree
+      return {tree.content => tree.children.first.content} if tree.size == 2
+
+      tree.children.map {|subtree| flatten subtree }.flatten
+    end
+
+    def unhash tagged_words
+      tagged_words.map {|hash| [hash.keys.first, hash.values.first] }
+    end
+
+    def remove_non_words tagged_words
+      tagged_words.reject {|tag, word| tag !~ /^[A-Z]/ }
+    end
+
+    def wordnet_compare entries1, entries2
+      result =
+      if entries1.class == String and entries2.class == String
+        entries1 == entries2 ? 1.0 : 0.0
+      elsif entries1.class == String
+        entries2.detect {|entry| entry.words.detect {|word| word == entries1 } } ? 1.0 : 0.0
+      elsif entries2.class == String
+        entries1.detect {|entry| entry.words.detect {|word| word == entries2 } } ? 1.0 : 0.0
+      else
+        min_distance = 30.0
+
+        entries1.each do |entry1|
+          entries2.each do |entry2|
+            hdf = entry1.hypernym_distance_from entry2
+            min_distance = [min_distance, hdf].min if hdf
+          end
+        end
+
+        # There's probably a better way to convert the distance to a similarity
+        # measure. Probably.
+        1 - min_distance / 30.0
+      end
+
+#      STDERR.puts "  wordnet_compare #{entries1.inspect} to #{entries2.inspect} => #{result.inspect}"
+
+      result
     end
 
     # Groups the subtrees by non-terminal type
@@ -113,17 +194,16 @@ module Copycat
     end
 
     # Converts the terminals of a parse tree to arrays of wordnet objects
-    def transform_tree(tree)
-      if(tree.children.empty?)
-        pos = tag_to_wordnet_part_of_speech(tree.parent.content)
-        if pos
-          unless (results = Wordnet.search(tree.content, pos)).empty?
-            tree.content = results
-          end
+    def transform_tree tree
+      if tree.children.empty?
+        if (pos = tag_to_wordnet_part_of_speech(tree.parent.content)) and (results = Wordnet.search(tree.content, pos))
+          tree.content = results unless results.empty?
         end
       else
-        tree.children.each{|child|transform_tree(child)}
+        tree.children.each {|child| transform_tree child }
       end
+
+      tree
     end
 
     def tag_to_wordnet_part_of_speech tag

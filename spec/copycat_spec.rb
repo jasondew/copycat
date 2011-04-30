@@ -21,16 +21,10 @@ describe Copycat do
   end
 
   describe 'Comparison' do
-    sentence1 = %q{In plagiarism detection with reference, the suspicious text fragments
-                   are compared to a reference corpus in order to find the possible
-                   source of the plagiarism cases.}
+    sentence1 = %q{In plagiarism detection with reference, the suspicious text fragments are compared to a reference corpus in order to find the possible source of the plagiarism cases.}
     sentence2 = %q{I can't believe it's not butter!}
-    sentence3 = %q{Jason and I built this state-of-the-art plagiarism detector in which
-                   the suspicious text fragments are compared to a reference corpus; this
-                   is how we have made most of our money to date.}
-    sentence4 = %q{When you want to detect plagiarism with a reference text, you compare
-                   the suspicious text fragments with a reference corpus so as to
-                   determine the likely source of the plagiarism.}
+    sentence3 = %q{Jason and I built this state-of-the-art plagiarism detector in which the suspicious text fragments are compared to a reference corpus; this is how we have made most of our money to date.}
+    sentence4 = %q{When you want to detect plagiarism with a reference text, you compare the suspicious text fragments with a reference corpus so as to determine the likely source of the plagiarism.}
 
     it 'should return a low probability for unrelated sentences' do
       Copycat.compare(sentence1, sentence2).should be_within(0.11).of(0.1)
@@ -48,4 +42,15 @@ describe Copycat do
       Copycat.compare(sentence1, sentence4).should be_within(0.3).of(0.5)
     end
   end
+
+  describe "#flatten" do
+    it "should return a flattened representation of the tree" do
+      tree = Tree::TreeNode.new("S-1", "S")
+      tree << Tree::TreeNode.new("FOO-42", "FOO") << Tree::TreeNode.new("WHNP-2", "WHNP") << Tree::TreeNode.new("i-3", "i")
+      tree << Tree::TreeNode.new("VBP-4", "VBP") << Tree::TreeNode.new("exist-5", "exist")
+
+      Copycat.flatten(tree).should == [{"WHNP" => "i"}, {"VBP" => "exist"}]
+    end
+  end
+
 end
