@@ -99,6 +99,15 @@ module Wordnet
       height <=> other.height
     end
 
+    # Returns a wordnet entry similar to (and perhaps the same as) this entry.
+    # Currently uses any available pointer
+    def similar_word
+      my_pos = {:noun => 'n', :adv => 'r', :adj => 'a', :verb => 'v'}[part_of_speech]
+      sims = pointers.select{|p|p[2] == my_pos}.map { |p| Wordnet[p[1], part_of_speech]}
+      sims << self
+      sims[rand(sims.length)]
+    end
+
   end
 
   module ClassMethods

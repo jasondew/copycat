@@ -20,8 +20,8 @@ module Copycat
         entry = node.content.first
         next unless entry
 
-        replacement = random(entry.words.keys)
-        node.content = replacement if replacement
+        replacement = entry.similar_word
+        node.content = random(replacement.words.keys) if replacement
       end
 
       reconstituted_sentence = []
@@ -32,7 +32,7 @@ module Copycat
       if times == 1
         result
       else
-        mutate(result, times - 1)
+        mutate(result, times - 1) # not suitable for large times, since uses stack
       end
     end
 
