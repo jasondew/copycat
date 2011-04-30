@@ -16,7 +16,7 @@ module Copycat
       tree.each do |node|
         next unless node.content.is_a? Array
 
-        # picking the first sense of the word because we have to better information
+        # picking the first sense of the word because we have no better information
         entry = node.content.first
         next unless entry
 
