@@ -53,8 +53,12 @@ module Copycat
       end
 
       max_similarity = 0.0
-      tagged_words2.size.times do |size|
-        max_similarity = [compare_fragments(tagged_words1, tagged_words2[0..size]), max_similarity].max
+      tagged_words2.size.times do |end_point|
+        end_point.times do |begin_point|
+          similarity = compare_fragments(tagged_words1, tagged_words2[begin_point..end_point])
+          similarity *= (end_point - begin_point).to_f / tagged_words2.size
+          max_similarity = [similarity, max_similarity].max
+        end
       end
 
       STDERR.puts "final result = #{max_similarity.inspect}"
@@ -64,24 +68,18 @@ module Copycat
 
     # precondition: tagged_words1.size >= tagged_words2.size
     def compare_fragments tagged_words1, tagged_words2
-      if tagged_words1.size == tagged_words2.size
-        result = compare_tagged_words tagged_words1, tagged_words2
-        STDERR.puts "identical sizes, tagged_words1.size=#{tagged_words1.size} result = #{result.inspect}\n\n#{'#'*120}"
-        result
-      else
-        max_similarity = 0.0
-        compared_size = tagged_words2.size
+      max_similarity = 0.0
+      compared_size = tagged_words2.size
 
-        (tagged_words1.size - tagged_words2.size).times do |offset|
-          similarity = compare_tagged_words tagged_words1[offset..(offset + compared_size - 1)], tagged_words2
-          STDERR.puts ">> offset #{offset} similarity = #{similarity.inspect}"
-          max_similarity = [similarity, max_similarity].max
-        end
-
-        result = max_similarity
-        STDERR.puts "non-identical sizes, result = #{result.inspect}\n\n#{'#'*120}"
-        result
+      (tagged_words1.size - tagged_words2.size + 1).times do |offset|
+        similarity = compare_tagged_words tagged_words1[offset..(offset + compared_size - 1)], tagged_words2
+#          STDERR.puts ">> offset #{offset} similarity = #{similarity.inspect}"
+        max_similarity = [similarity, max_similarity].max
       end
+
+      result = max_similarity
+      STDERR.puts ">> compare_fragments, result = #{result.inspect}\n\n#{'#'*120}"
+      result
 
       #compare_subtrees tree1, tree2
 
@@ -156,10 +154,11 @@ module Copycat
       result =
       if entries1.class == String and entries2.class == String
         entries1 == entries2 ? 1.0 : 0.0
-      elsif entries1.class == String
-        entries2.detect {|entry| entry.words.detect {|word| word == entries1 } } ? 1.0 : 0.0
-      elsif entries2.class == String
-        entries1.detect {|entry| entry.words.detect {|word| word == entries2 } } ? 1.0 : 0.0
+      elsif [entries1.class,entries2.class].include?(String)
+        # This means one of the words is in wordnet but the other isn't,
+        # which makes it terribly hard to make a judgment.
+        # Just an estimate. Not really sure what a good number here is.
+        0.1
       else
         min_distance = 30.0
 
