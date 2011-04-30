@@ -13,5 +13,10 @@ describe Copycat do
       words = Copycat.mutate(sentence).split(' ')
       words.length.should be > 8
     end
+
+    it 'should not include ruby inspection strings' do
+      sentence2 = "He had a bad habit of throwing a tantrum whenever I was most vulnerable."
+      Copycat.mutate(sentence2)['::'].should be_nil
+    end
   end
 end
