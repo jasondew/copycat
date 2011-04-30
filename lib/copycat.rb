@@ -38,6 +38,8 @@ module Copycat
       end
     end
 
+    # Returns a float in the range of [0,1] representing the probabality that
+    # sentence2 has plagiarized sentence1
     def compare(sentence1, sentence2)
       tree1 = Parser.parse(sentence1)
       tree2 = Parser.parse(sentence2)
