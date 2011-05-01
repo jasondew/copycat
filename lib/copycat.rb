@@ -13,29 +13,64 @@ module Copycat
 
       transform_tree tree
 
+      # Transform the tree again, picking a particular wordnet entry 
       tree.each do |node|
-        next unless node.content.is_a? Array
+        next unless node.content.is_a? Hash
 
-        # picking the first sense of the word because we have no better information
-        entry = node.content.first
-        next unless entry
+        # Pick a wordnet entry randomly from the matches
+        #
+        # I suppose if we knew the prior probabilities of the different senses,
+        # picking the most probable would be preferable to picking at random.
+        node.content[:current] = random node.content[:entries]
+      end
 
-        replacement = entry.similar_word
-        node.content = random(replacement.words.keys) if replacement
+      # Perform mutations <times> times
+      times.times do
+        tree.each do |node|
+          next unless node.content.is_a? Hash
+          node.content[:current] = node.content[:current].similar_word
+        end
+      end
+
+      # take the final sense and pick a concrete word for it
+      tree.each do |node|
+        next unless node.content.is_a? Hash
+        node.content[:old_text] = node.content[:text]
+        node.content[:text] = random node.content[:current].words.keys
       end
 
       reconstituted_sentence = []
-      tree.each {|node| reconstituted_sentence << node.content if node.is_leaf? }
+      tree.each do |node|
+        next unless node.is_leaf?
+        val = node.content.is_a?(Hash) ? node.content[:text] : node.content
+        reconstituted_sentence << val
+      end
+
+      # Pretty-print the result
+      lines = []
+      tree.each do |node|
+        next unless node.is_leaf?
+        if(node.content.is_a? Hash)
+          lines << [node.content[:text], node.content[:old_text]]
+        else
+          lines << node.content
+        end
+      end
+      left_width = lines.map{|l|l.is_a?(String) ? l.length : l[0].length}.max
+      # right_width = lines.map{|l|l.is_a?(String) ? 0 : l[1].length}.max
+      lines.each do |line|
+        if line.is_a? String
+          puts("%-#{left_width}s |" % line)
+        else
+          puts("%-#{left_width}s | <= %s" % line)
+        end
+      end
 
       result = reconstituted_sentence.join " "
       # Cleans up some extra whitespace added before punctuation
       result = result.gsub(/\s+([;,\.\!\?])/, "\\1")
 
-      if times == 1
-        result
-      else
-        mutate(result, times - 1) # not suitable for large times, since uses stack
-      end
+      result
     end
 
     # Returns a float in the range of [0,1] representing the probabality that
@@ -137,7 +172,13 @@ module Copycat
     end
 
     def flatten tree
-      return {tree.content => tree.children.first.content} if tree.size == 2
+      if tree.size == 2
+        val = tree.children.first.content
+        if val.is_a? Hash
+          val = val[:entries]
+        end
+        return {tree.content => val}
+      end
 
       tree.children.map {|subtree| flatten subtree }.flatten
     end
@@ -196,7 +237,9 @@ module Copycat
     def transform_tree tree
       if tree.children.empty?
         if (pos = tag_to_wordnet_part_of_speech(tree.parent.content)) and (results = Wordnet.search(tree.content, pos))
-          tree.content = results unless results.empty?
+          unless results.empty?
+            tree.content = {:pos => pos, :text => tree.content, :entries => results}
+          end
         end
       else
         tree.children.each {|child| transform_tree child }
