@@ -101,9 +101,10 @@ module Wordnet
 
     # Returns a wordnet entry similar to (and perhaps the same as) this entry.
     # Currently uses any available pointer
+    BAD_SIMILARITY_POINTERS = ['!']
     def similar_word
       my_pos = {:noun => 'n', :adv => 'r', :adj => 'a', :verb => 'v'}[part_of_speech]
-      sims = pointers.select{|p|p[2] == my_pos}.map { |p| Wordnet[p[1], part_of_speech]}
+      sims = pointers.select{|p|p[2] == my_pos and not BAD_SIMILARITY_POINTERS.include?(p[0])}.map { |p| Wordnet[p[1], part_of_speech]}
       sims << self
       sims[rand(sims.length)]
     end
