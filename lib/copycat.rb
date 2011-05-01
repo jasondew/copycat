@@ -56,13 +56,15 @@ module Copycat
           lines << node.content
         end
       end
-      left_width = lines.map{|l|l.is_a?(String) ? l.length : l[0].length}.max
-      # right_width = lines.map{|l|l.is_a?(String) ? 0 : l[1].length}.max
+      left_width = [lines.map{|l|l.is_a?(String) ? l.length : l[0].length}.max, 5].max
+      right_width = lines.map{|l|l.is_a?(String) ? 0 : l[1].length}.max
+      puts("  %-#{left_width}s |    %s" % %w(After Before))
+      puts("-"*(left_width + 3) + "|" + "-"*(right_width + 4))
       lines.each do |line|
         if line.is_a? String
-          puts("%-#{left_width}s |" % line)
+          puts("  %-#{left_width}s |    %s" % [line,line])
         else
-          puts("%-#{left_width}s | <= %s" % line)
+          puts("  %-#{left_width}s | <= %s" % line)
         end
       end
 
