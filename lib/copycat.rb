@@ -51,7 +51,7 @@ module Copycat
       tree.each do |node|
         next unless node.is_leaf?
         if(node.content.is_a? Hash)
-          lines << [node.content[:text], node.content[:old_text]]
+          lines << [node.content[:old_text], node.content[:text]]
         else
           lines << node.content
         end
@@ -64,7 +64,7 @@ module Copycat
         if line.is_a? String
           puts("  %-#{left_width}s |    %s" % [line,line])
         else
-          puts("  %-#{left_width}s | <= %s" % line)
+          puts("  %-#{left_width}s | => %s" % line)
         end
       end
 
