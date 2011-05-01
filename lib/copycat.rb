@@ -79,9 +79,6 @@ module Copycat
       tagged_words1 = remove_non_words unhash flatten transform_tree Parser.parse(sentence1)
       tagged_words2 = remove_non_words unhash flatten transform_tree Parser.parse(sentence2)
 
-#      STDERR.puts "comparing:\n  #{sentence1.inspect}\n  #{sentence2.inspect}"
-#      STDERR.puts "comparing:\n  #{tagged_words1.inspect}\n  #{tagged_words2.inspect}"
-
       # ensure that tagged_words1.size >= tagged_words2.size
       if tagged_words1.size < tagged_words2.size
         tagged_words1, tagged_words2 = tagged_words2, tagged_words1
@@ -96,8 +93,6 @@ module Copycat
         end
       end
 
-      STDERR.puts "final result = #{max_similarity.inspect}"
-
       max_similarity
     end
 
@@ -108,13 +103,10 @@ module Copycat
 
       (tagged_words1.size - tagged_words2.size + 1).times do |offset|
         similarity = compare_tagged_words tagged_words1[offset..(offset + compared_size - 1)], tagged_words2
-#          STDERR.puts ">> offset #{offset} similarity = #{similarity.inspect}"
         max_similarity = [similarity, max_similarity].max
       end
 
-      result = max_similarity
-      STDERR.puts ">> compare_fragments, result = #{result.inspect}\n\n#{'#'*120}"
-      result
+      max_similarity
 
       #compare_subtrees tree1, tree2
 
@@ -134,14 +126,10 @@ module Copycat
     end
 
     def compare_tagged_words tagged_words1, tagged_words2
-#STDERR.puts " !! >> tagged_words1.size = #{tagged_words1.size}, tagged_words2.size = #{tagged_words2.size}, zip size = #{tagged_words1.zip(tagged_words2).size}"
       tagged_words1.zip(tagged_words2).inject(0.0) do |sum, ((tag1, word1), (tag2, word2))|
         if tag1 == tag2
-          result = sum + wordnet_compare(word1, word2)
-#          STDERR.puts "compare_tagged_words >> #{result.inspect}"
-          result
+          sum + wordnet_compare(word1, word2)
         else
-#          STDERR.puts "compare_tagged_words >> #{sum.inspect} b/c tags didn't match >> #{tag1} != #{tag2}"
           sum
         end
       end / tagged_words1.size.to_f
@@ -155,7 +143,6 @@ module Copycat
       elsif tree2.size == 2
       else
         # all possible alignments
-
 
         total = 0.0
         tree1.children.zip(tree2.children).each do |subtree1, subtree2|
@@ -192,7 +179,6 @@ module Copycat
     end
 
     def wordnet_compare entries1, entries2
-      result =
       if entries1.class == String and entries2.class == String
         entries1 == entries2 ? 1.0 : 0.0
       elsif [entries1.class,entries2.class].include?(String)
@@ -214,10 +200,6 @@ module Copycat
         # measure. Probably.
         1 - min_distance / 30.0
       end
-
-#      STDERR.puts "  wordnet_compare #{entries1.inspect} to #{entries2.inspect} => #{result.inspect}"
-
-      result
     end
 
     # Groups the subtrees by non-terminal type
