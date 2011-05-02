@@ -78,24 +78,27 @@ module Copycat
     # Returns a float in the range of [0,1] representing the probabality that
     # sentence2 has plagiarized sentence1
     def compare(sentence1, sentence2)
-      tagged_words1 = remove_non_words unhash flatten transform_tree Parser.parse(sentence1)
-      tagged_words2 = remove_non_words unhash flatten transform_tree Parser.parse(sentence2)
+      tree1 = transform_tree Parser.parse(sentence1)
+      tree2 = transform_tree Parser.parse(sentence2)
 
-      # ensure that tagged_words1.size >= tagged_words2.size
-      if tagged_words1.size < tagged_words2.size
-        tagged_words1, tagged_words2 = tagged_words2, tagged_words1
-      end
+      # Algorithm ideas:
+      #
+      #   Requirements: - If most of two trees are the same, but some inner
+      #                   part is different or missing, it should still score high
+      #                 - If two subtrees are similar, regardless of their position
+      #                   within their respective sentences, it should be noticed
+      #
+      #   K here we go. Recursive definition:
+      #     The plagiarism-probability between two trees with equal root nodes is
+      #       some algebraic combination of the similarities of their children in order,
+      #       if possible, with the similarities of arbitrary pairs of children.
+      #     Implemented recursively this would be quite repetitive, so we will memoize the
+      #       comparison function.
+      #     Also we need to discount by the size of the similarity.
+      #     Thus the following line:
 
-      max_similarity = 0.0
-      tagged_words2.size.times do |end_point|
-        end_point.times do |begin_point|
-          similarity = compare_fragments(tagged_words1, tagged_words2[begin_point..end_point])
-          similarity *= (end_point - begin_point).to_f / tagged_words2.size
-          max_similarity = [similarity, max_similarity].max
-        end
-      end
+      compare_subtrees(tree1, tree2)
 
-      max_similarity
     end
 
     # precondition: tagged_words1.size >= tagged_words2.size
@@ -137,21 +140,60 @@ module Copycat
       end / tagged_words1.size.to_f
     end
 
-    def compare_subtrees tree1, tree2
-      if tree1.size == 2 and tree2.size == 2
-        # base case, we have two collections of wordnet objects
-        wordnet_compare(tree1.children.first.content, tree2.children.first.content)
-      elsif tree1.size == 2
-      elsif tree2.size == 2
-      else
-        # all possible alignments
 
-        total = 0.0
-        tree1.children.zip(tree2.children).each do |subtree1, subtree2|
-          total += compare_subtrees subtree1, subtree2
+    # Returns a float within [0,1]
+    def compare_subtrees tree1, tree2, memoization = {}
+      memoization[[tree1.object_id, tree2.object_id].sort] ||= begin
+        if tree1.size == 2 and tree2.size == 2
+          # base case, we have two collections of wordnet objects
+          wordnet_compare(tree1.children.first.content,
+                          tree2.children.first.content)
+        elsif tree1.size == 2
+          compare_leaves(tree1.children.first, tree2)
+        elsif tree2.size == 2
+          compare_leaves(tree2.children.first, tree1)
+        else
+          # Ordered comparison, worth more
+          ordered = 0.0
+          if(tree1.children.length == tree2.children.length)
+            tree1.children.zip(tree2.children).each do |child1, child2|
+              if(child1.content == child2.content)
+                val = compare_subtrees(child1, child2, memoization)
+                ordered += size_discount(val, [child1.size, child2.size].min)
+              end
+            end
+          end
+
+          # Unordered comparison
+          unordered = 0.0
+          tree1.each do |child1|
+            tree2.each do |child2|
+              if(child1.content == child2.content)
+                val = compare_subtrees(child1, child2)
+                unordered += size_discount(val, [child1.size, child2.size].min)
+              end
+            end
+          end
+
+          # Not sure how to combine these
+          # At the moment this isn't guaranteed to be [0,1]
+          2.0 * ordered / 3.0 + unordered / 3.0
         end
-        total / tree1.children.length
       end
+    end
+
+    def compare_leaves(leaf, tree)
+      max = 0.0
+      tree.each do |node|
+        next unless node.is_leaf?
+        x = wordnet_compare(leaf.content, node.content)
+        max = [x,max].max
+      end
+      max
+    end
+
+    def size_discount(x, word_count)
+      x * (1 - 1.0/word_count)
     end
 
     def child_tags tree
@@ -189,10 +231,11 @@ module Copycat
         # Just an estimate. Not really sure what a good number here is.
         0.1
       else
+        # Here we expect both arguments are hashes
         min_distance = 30.0
 
-        entries1.each do |entry1|
-          entries2.each do |entry2|
+        entries1[:entries].each do |entry1|
+          entries2[:entries].each do |entry2|
             hdf = entry1.hypernym_distance_from entry2
             min_distance = [min_distance, hdf].min if hdf
           end
