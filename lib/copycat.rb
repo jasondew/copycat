@@ -64,7 +64,8 @@ module Copycat
         if line.is_a? String
           puts("  %-#{left_width}s |    %s" % [line,line])
         else
-          puts("  %-#{left_width}s | => %s" % line)
+          arrow = (line[0] == line[1] ? '  ' : '=>')
+          puts("  %-#{left_width}s | #{arrow} %s" % line)
         end
       end
 
